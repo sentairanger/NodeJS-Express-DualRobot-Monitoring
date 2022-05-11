@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/path: /metrics
+    prometheus.io/port: nodeport
+  labels:
+    name: node-dualrobot
+    release: prometheus
+  name: node-dualrobot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-dualrobot
+  template:
+    metadata:
+      labels:
+        app: node-dualrobot
+    spec:
+      containers:
+      - name: node-dualrobot
+        image: linuxrobotgeek/node-dualrobot:latest
+        imagePullPolicy: Always
+        ports:
+        - name: nodeport
+          containerPort: 3001
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-dualrobot
+  labels:
+    app: node-dualrobot
+spec:
+  selector:
+    app: node-dualrobot
+  ports:
+    - name: node-dualrobot
+      protocol: TCP
+      port: 3001
+      targetPort: nodeport
+  type: LoadBalancer
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: node-dualrobot
+  namespace: monitoring
+  labels:
+    app: node-dualrobot
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: node-dualrobot
+  endpoints:
+  - port: node-dualrobot
+    path: /metrics
+    interval: 15s
+  namespaceSelector:
+    matchNames:
+    - default
